@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: MessageHandlers/discord.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: MessageHandlers/discord.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/** Class for discord functions */
+class DiscordMessageHandler {
+  /**
+   * Create handler
+   * @param {Object} message - Message data from Discord.js
+   * @param {Object} cfg - Configuration Settings
+   * @param {Object} client - Discord client
+   */
+  constructor(message, cfg, client) {
+    this.cfg        = cfg;
+    this.client     = client;
+    this.message    = message;
+    this.username   = message.author.username + '#' + message.author.discriminator;
+    this.user_id    = message.author.id;
+    this.channel    = (message.channel.type === 'text') ? message.channel.id : false;
+  }
+
+  /**
+   * Send message to channel or direct message
+   * @param {Object | string} content - Message or embed
+   */
+  send(content) {
+    if (this.message.channel) {
+      this.chan(content);
+      return;
+    }
+    this.dm(content);
+    return;
+  }
+
+  /**
+   * Direct message
+   * @param {Object | string} content - Message or embed
+   */
+  dm(content) {
+    this.message.author.send(content).catch((ex) => { if (content.length > 0) { this.dmError() } });
+  }
+
+  /**
+   * Channel reply
+   * @param {Object | string} content - Message or embed
+   */
+  chan(content) {
+    this.message.channel.send(content).catch((ex) => {console.log(ex)});
+  }
+
+  /**
+   * Direct message failure (User has DM disabled)
+   */
+  dmError() {
+    this.message.channel.send("Please enable direct messages for Mule.WTF").catch((ex) => {console.log(ex)});
+  }
+
+  /**
+   * Get command arguments
+   */
+  args() {
+    let rawArgs = this.message.content.replace( /\s\s+/g, ' ').split(' ');
+    if (rawArgs.length > 10) { rawArgs.splice(0,6) }
+    let commandArgs = [];
+    for (let i = 0; i &lt; rawArgs.length; i++) {
+      commandArgs.push(rawArgs[i].toLowerCase());
+    }
+    if (commandArgs[0] != '!mule' &amp;&amp; !commandArgs[0].startsWith('&lt;')) {
+      commandArgs.splice(0,1)
+    } else {
+      commandArgs.splice(0,2)
+    }
+    return commandArgs;
+  }
+
+  /**
+   * Get message user mentions
+   *
+   */
+  async getMention() {
+    try {
+      let discordId = this.message.mentions.users.array()[0].id
+      if (discordId == this.client.user.id) {
+        discordId = this.message.mentions.users.array()[1].id
+      }
+      return discordId;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Create embed
+   * @param {string} key - UUID for unique link
+   * @param {string} route - route for client page
+   * @param {string} title - title for the embed
+   * @param {string} description - information for the embed
+   */
+
+  embed(key, route, title, description) {
+    let link = this.cfg.CLIENT_URL + '/' + route + (key ? '/'+ key : '');
+    let embed = {
+        "title": title,
+        "description": description,
+        "thumbnail": {
+          "url": "https://mule.wtf/mule.png"
+        },
+        "url": link,
+        "color": 2222222,
+        "author": {
+            "name": "Mule.WTF",
+        }
+    };
+    return embed
+  }
+
+  /**
+   * Get formatted metaverse string
+   * @param {string} network - network name to format
+   */
+  metaverse(network) {
+    if (network == 'mainnet') {
+      return "`#Ethereum` :unicorn:"
+    } else if (network == 'rinkeby') {
+      return "`#Rinkeby` :test_tube::unicorn:"
+    } else if (network == 'kovan') {
+      return "`#Kovan` :test_tube::unicorn:"
+    } else if (network == 'maticv3') {
+      return "`#Matic_V3` :test_tube::test_tube:"
+    }
+  }
+
+}
+
+module.exports = DiscordMessageHandler;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Api.html">Api</a></li><li><a href="CommandRouter.html">CommandRouter</a></li><li><a href="DiscordMessageHandler.html">DiscordMessageHandler</a></li><li><a href="EnjinAdapter.html">EnjinAdapter</a></li><li><a href="ENS.html">ENS</a></li><li><a href="Erc20Adapter.html">Erc20Adapter</a></li><li><a href="Erc721Adapter.html">Erc721Adapter</a></li><li><a href="Factory.html">Factory</a></li><li><a href="MuleController.html">MuleController</a></li><li><a href="RedisController.html">RedisController</a></li><li><a href="SqlController.html">SqlController</a></li><li><a href="TelegramMessageHandler.html">TelegramMessageHandler</a></li><li><a href="Web3Adapter.html">Web3Adapter</a></li><li><a href="Web3Controller.html">Web3Controller</a></li><li><a href="WSS.html">WSS</a></li></ul><h3>Global</h3><ul><li><a href="global.html#axios">axios</a></li><li><a href="global.html#dotenv">dotenv</a></li><li><a href="global.html#favoriteTokens">favoriteTokens</a></li><li><a href="global.html#getPool">getPool</a></li><li><a href="global.html#getUser">getUser</a></li><li><a href="global.html#platformToQuery">platformToQuery</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Thu Jul 02 2020 20:34:07 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

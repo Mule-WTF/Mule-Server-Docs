@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Web3/Web3Controller.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Web3/Web3Controller.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const Web3Adapter       = require('./Web3Adapter.js');
+const WebsocketAdapter  = require('./WebsocketAdapter.js');
+const EnsAdapter        = require('./ENS.js');
+const Erc20Adapter      = require('./Erc20Adapter.js');
+const Erc721Adapter     = require('./Erc721Adapter.js');
+const Factory           = require('./Factory.js');
+const Tokens            = require('./Tokens/TokenList.js');
+const EnjinAdapter      = require('./EnjinAdapter.js');
+
+/** Web3 Main Controller */
+class Web3Controller {
+  /**
+   * Create Controller
+   * @param {Object} cfg - Configuration settings
+   * @param {Object} logger - Logger
+   */
+  constructor(cfg, logger) {
+    this.cfg     = cfg;
+    this.logger  = logger;
+
+    this.addAllAdapters();
+
+    this.mainnet = false;
+    this.rinkeby = false;
+    this.kovan   = false;
+    this.maticv3 = false;
+    this.ens     = false;
+    this.enjin   =
+
+    this.wss    = new WebsocketAdapter();
+
+    this.networks   = ['mainnet', 'rinkeby', 'kovan', 'maticv3'];
+    this.tokens     = Tokens;
+    this.erc20      = new Erc20Adapter();
+    this.erc721     = new Erc721Adapter();
+    this.factory    = new Factory();
+  }
+
+  /**
+   * Add all available http adapters
+   */
+  async addAllAdapters() {
+    await this.addAdapter('mainnet', 'https://mainnet.infura.io/v3/' + this.cfg.INFURA_ID);
+    await this.addAdapter('rinkeby', 'https://rinkeby.infura.io/v3/' + this.cfg.INFURA_ID);
+    await this.addAdapter('kovan', 'https://kovan.infura.io/v3/' + this.cfg.INFURA_ID);
+    await this.addAdapter('maticv3', 'https://testnetv3.matic.network/');
+    return true;
+  }
+  /**
+   * Add all available websocket adapters
+   */
+  async addWebsocketAdapters() {
+    await this.wss.add('mainnet', 'wss://mainnet.infura.io/ws/v3/' + this.cfg.INFURA_ID);
+    await this.wss.add('rinkeby', 'wss://rinkeby.infura.io/ws/v3/' + this.cfg.INFURA_ID);
+    await this.wss.add('kovan', 'wss://kovan.infura.io/ws/v3/' + this.cfg.INFURA_ID);
+    await this.wss.add('maticv3', 'wss://testnetv3-wss.matic.network');
+    return true;
+  }
+
+  /**
+   * Add adapter
+   * @param {string} network - network for adapter
+   * @param {string} provider - provider URL for adapter connection
+   */
+  async addAdapter(network, provider) {
+    if (this[network]) {
+      return true;
+    }
+
+    let adapter = new Web3Adapter(provider, network);
+    await adapter.connect();
+    this[network] = adapter;
+    if (network == 'mainnet') {
+      try {
+        this.ens = new EnsAdapter(adapter.web3);
+      } catch(ex) {
+        this.logger.warn('ENS not connected: ' + ex);
+      }
+      try {
+        this.enjin = new EnjinAdapter(adapter.web3);
+        await this.enjin.init()
+      } catch(ex) {
+        this.logger.warn('Enjin Adapter not connected: ' + ex);
+      }
+    }
+  }
+
+  /**
+   * Get a network adapter
+   */
+  async getAdapter(network) {
+    if (!this[network]) {
+      return false;
+    }
+    return this[network];
+  }
+
+  /**
+   * Get ERC20 contract adapter with network provider
+   * @param {string} network - Network for contract
+   * @param {string} contractAddr - ERC20 contract address
+   */
+  async ERC20Adapter(network, contractAddr) {
+    if (!this[network]) {
+      return false;
+    }
+
+    if (!contractAddr || contractAddr.length != 42 || contractAddr.indexOf("0x") != 0) {
+      return false;
+    }
+
+    await this.erc20.init(this[network].web3, contractAddr);
+    return this.erc20;
+  }
+
+  /**
+   * Get ERC721 contract adapter with network provider
+   * @param {string} network - Network for contract
+   * @param {string} contractAddr - ERC721 contract address
+   */
+  async ERC721Adapter(network, contractAddr) {
+    if (!this[network]) {
+      return false;
+    }
+
+    if (!contractAddr || contractAddr.length != 42 || contractAddr.indexOf("0x") != 0) {
+      return false;
+    }
+
+    await this.erc721.init(this[network].web3, contractAddr);
+    return this.erc721;
+  }
+
+  /**
+   * Enjin adapter
+   * @param {string} targetAddress - Address to get enjin information about
+   */
+  async EnjinAdapter(targetAddress) {
+    return this.enjin
+  }
+
+  /**
+   * Mule contract factory adapter
+   * @param {string} network - Network for factory contract
+   */
+  async factoryAdapter(network) {
+    if (!this[network]) {
+      return false;
+    }
+
+    await this.factory.init(this[network].web3, network);
+    return this.factory;
+
+  }
+
+  /**
+   * ENS lookup (mainnet only)
+   * @param {string} domain - ENS name
+   */
+  async ENS(domain) {
+    if (!this.ens) {
+      return false;
+    }
+    let address = await this.ens.lookup(domain);
+    return address;
+  }
+}
+module.exports = Web3Controller;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Api.html">Api</a></li><li><a href="CommandRouter.html">CommandRouter</a></li><li><a href="DiscordMessageHandler.html">DiscordMessageHandler</a></li><li><a href="EnjinAdapter.html">EnjinAdapter</a></li><li><a href="ENS.html">ENS</a></li><li><a href="Erc20Adapter.html">Erc20Adapter</a></li><li><a href="Erc721Adapter.html">Erc721Adapter</a></li><li><a href="Factory.html">Factory</a></li><li><a href="MuleController.html">MuleController</a></li><li><a href="RedisController.html">RedisController</a></li><li><a href="SqlController.html">SqlController</a></li><li><a href="TelegramMessageHandler.html">TelegramMessageHandler</a></li><li><a href="Web3Adapter.html">Web3Adapter</a></li><li><a href="Web3Controller.html">Web3Controller</a></li><li><a href="WSS.html">WSS</a></li></ul><h3>Global</h3><ul><li><a href="global.html#axios">axios</a></li><li><a href="global.html#dotenv">dotenv</a></li><li><a href="global.html#favoriteTokens">favoriteTokens</a></li><li><a href="global.html#getPool">getPool</a></li><li><a href="global.html#getUser">getUser</a></li><li><a href="global.html#platformToQuery">platformToQuery</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Thu Jul 02 2020 20:34:07 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

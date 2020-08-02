@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Sql/Queries/apiQueries.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Sql/Queries/apiQueries.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/** Api db queries */
+const platformToQuery = (platform, idOrUsername) => {
+  let q = ''
+  switch(platform) {
+    case 'mule':
+      q = 'account.mule_name ILIKE $1'
+      break;
+    case 'discord':
+      q = 'linked.discord_' + idOrUsername + ' ILIKE $1'
+      break;
+    case 'telegram':
+      q = 'linked.telegram_' + idOrUsername + ' ILIKE $1'
+      break;
+    default:
+      q = 'account.mule_name ILIKE $1'
+      break;
+  }
+  return q;
+}
+
+const usernameToAddress = (username, platform) => {
+    let q = platformToQuery(platform, 'username');
+    return {
+        text: `
+            SELECT
+                linked.discord_username,
+                linked.telegram_username,
+                linked.user_uuid,
+                account.mule_name,
+                account.address,
+                account.e_address,
+                account.is_internal
+            FROM
+                linked
+            LEFT JOIN
+                account
+            ON
+                linked.user_uuid = account.user_uuid
+            WHERE
+                `+ q + `;
+        `,
+        values: [username]
+    }
+}
+
+const idToAddress = (id, platform) => {
+    let q = platformToQuery(platform, 'id');
+    return {
+        text: `
+            SELECT
+                linked.discord_id,
+                linked.discord_username,
+                linked.telegram_id,
+                linked.telegram_username,
+                linked.user_uuid,
+                account.mule_name,
+                account.address,
+                account.e_address,
+                account.is_internal
+            FROM
+                linked
+            LEFT JOIN
+                account
+            ON
+                linked.user_uuid = account.user_uuid
+            WHERE
+                ` + q + `;
+        `,
+        values: [id]
+    }
+}
+
+const addressToMule = (address) => {
+    return {
+        text: `
+            SELECT
+                mule_name
+            FROM
+                account
+            WHERE
+                address = $1
+            OR
+                e_address = $1;
+        `,
+        values: [address]
+    }
+}
+
+const getWeb3Info = (user) => {
+    return {
+        text: `
+          SELECT
+                mule_name,
+                user_uuid,
+                address,
+                e_address,
+                is_internal,
+                network
+            FROM
+                account
+            WHERE
+                address = $1
+            OR
+                e_address = $1
+            OR
+                user_uuid::text = $1;
+        `,
+        values: [user]
+    }
+}
+
+const profileSearch = (search) => {
+    return {
+        text: `
+            SELECT
+                account.user_uuid,
+                account.mule_name,
+                account.address,
+                account.e_address,
+                account.is_internal
+            FROM
+                linked
+            LEFT JOIN
+                account
+            ON
+                linked.user_uuid = account.user_uuid
+            WHERE
+                account.mule_name ILIKE $1
+            OR
+                linked.discord_username ILIKE $1
+            OR
+                linked.discord_id = $1
+            OR
+                linked.telegram_id = $1
+            OR
+                linked.telegram_username ILIKE $1
+            OR
+                account.address = $1
+            OR
+                account.e_address = $1;
+        `,
+        values: [search]
+    }
+}
+
+const multiAddress = (idOrUsername, platform) => {
+    if (platform == 'mule') {
+      let q = platformToQuery(platform, false);
+      return {
+        text: `
+            SELECT
+                address,
+                e_address
+            FROM
+                account
+            WHERE
+                `+ q + `;
+        `,
+        values: [idOrUsername]
+      }
+    } else {
+      let q1 = platformToQuery(platform, 'username');
+      let q2 = platformToQuery(platform, 'id');
+      return {
+        text: `
+            SELECT
+                linked.discord_username,
+                linked.discord_id,
+                linked.telegram_username,
+                linked.telegram_id,
+                linked.user_uuid,
+                account.mule_name,
+                account.address,
+                account.e_address
+            FROM
+                linked
+            LEFT JOIN
+                account
+            ON
+                linked.user_uuid = account.user_uuid
+            WHERE
+                `+ q1 + `
+            OR
+                `+ q2 + `;
+        `,
+        values: [idOrUsername]
+      }
+    }
+}
+
+module.exports = {
+  usernameToAddress,
+  idToAddress,
+  addressToMule,
+  getWeb3Info,
+  profileSearch,
+  multiAddress
+}
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Api.html">Api</a></li><li><a href="CommandRouter.html">CommandRouter</a></li><li><a href="DiscordMessageHandler.html">DiscordMessageHandler</a></li><li><a href="EnjinAdapter.html">EnjinAdapter</a></li><li><a href="ENS.html">ENS</a></li><li><a href="Erc20Adapter.html">Erc20Adapter</a></li><li><a href="Erc721Adapter.html">Erc721Adapter</a></li><li><a href="Factory.html">Factory</a></li><li><a href="MuleController.html">MuleController</a></li><li><a href="RedisController.html">RedisController</a></li><li><a href="SqlController.html">SqlController</a></li><li><a href="TelegramMessageHandler.html">TelegramMessageHandler</a></li><li><a href="Web3Adapter.html">Web3Adapter</a></li><li><a href="Web3Controller.html">Web3Controller</a></li><li><a href="WSS.html">WSS</a></li></ul><h3>Global</h3><ul><li><a href="global.html#axios">axios</a></li><li><a href="global.html#dotenv">dotenv</a></li><li><a href="global.html#favoriteTokens">favoriteTokens</a></li><li><a href="global.html#getPool">getPool</a></li><li><a href="global.html#getUser">getUser</a></li><li><a href="global.html#platformToQuery">platformToQuery</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Thu Jul 02 2020 20:34:07 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: OpenSea/OpenSea.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: OpenSea/OpenSea.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>/** TO BE REPLACED BY BLOCKADE GAMES CACHE */
+const axios = require('axios');
+const cfg = require('../../Config/config.js');
+
+class OpenSea {
+  constructor(network) {
+    this.network = network;
+  }
+
+  async getInventory(address, contractName, itemName) {
+    let tokenId = '';
+    let contractAddr = '';
+    let filter = false;
+
+    if (itemName &amp;&amp; isNaN(parseInt(itemName, 10))) {
+      itemName = itemName.toLowerCase().replace(/\s/g,'').substring(0,6);
+    } else if (itemName) {
+      tokenId = '&amp;token_ids=' + itemName;
+      filter = true;
+    }
+
+    if (contractName &amp;&amp; (contractName.length != 42 &amp;&amp; contractName.indexOf("0x") != 0)) {
+      contractName = contractName.toLowerCase().replace(/\s/g,'').substring(0,6);
+    } else if (contractName) {
+      contractAddr = '&amp;asset_contract_address=' + contractName;
+      filter = true;
+    }
+
+    let assets = await this.openSea(address, tokenId, contractAddr);
+    if (!assets) {
+      return false;
+    }
+
+    let table_c = 'Contract Name'.padStart(34);
+    let table_i = 'Item Name'.padStart(21);
+    let seperator = ''.padStart(68, '-');
+    let inventory = '```\n' + table_i + table_c + '\n' + seperator + '\n';
+    let iCount = 0;
+    for (let i = 0; i &lt; assets.length; i++) {
+      let name = assets[i].name;
+      let contract = assets[i].asset_contract.name;
+      if (!name || !name == null) { continue }
+      if (!contract || !contract == null) { continue }
+      if (!filter) {
+        if (itemName &amp;&amp; itemName != name.toLowerCase().replace(/\s/g,'').substring(0,6)) { continue }
+        if (contractName &amp;&amp; contractName != contract.toLowerCase().replace(/\s/g,'').substring(0,6)) { continue }
+      }
+      inventory += ((name.length >= 34) ? (name.substring(0,31) + '...') : name.padEnd(34)) + ' | ' + ((contract.length >= 34) ? (contract.substring(0,31) + '...') : contract) + '\n'
+      let testMax = inventory.length + 150;
+      iCount += 1;
+      if (testMax > 1900 || iCount == 10) { break }
+    }
+    inventory += '```';
+
+    if (iCount &lt; 1) { return false }
+    return inventory;
+  }
+
+  async getContract(address, contractName, itemName) {
+    itemName = itemName.toLowerCase().replace(/\s/g,'').substring(0,6);
+    contractName = contractName.toLowerCase().replace(/\s/g,'').substring(0,6);
+
+    let assets = await this.openSea(address);
+    if (!assets) {
+      return false;
+    }
+    for (let i = 0; i &lt; assets.length; i++) {
+      if (!assets[i].name || !assets[i].name == null) { continue }
+      if (!assets[i].asset_contract.name || !assets[i].asset_contract.name == null) { continue }
+      let name = assets[i].name.toLowerCase().replace(/\s/g,'').substring(0,6);
+      let contract = assets[i].asset_contract.name.toLowerCase().replace(/\s/g,'').substring(0,6);
+      if (itemName != name || contractName != contract) {
+        continue;
+      }
+
+      /* Break Enjin */
+      if (assets[i].asset_contract.name == 'Enjin' || assets[i].asset_contract.name == 'Enjin Old') { return false }
+      let address = assets[i].asset_contract.address
+      let id = assets[i].token_id;
+      return {'address': address, 'id': id};
+    }
+
+    return false;
+  }
+
+  async getInventoryApi(address, contractName, itemName) {
+    let tokenId = '';
+    let contractAddr = '';
+
+    if (!contractName || contractName.length != 42) { return false }
+    if (itemName) {
+      tokenId = '&amp;token_ids=' + itemName;
+    }
+
+    contractAddr = '&amp;asset_contract_address=' + contractName;
+
+    let assets = await this.openSea(address, tokenId, contractAddr);
+    if (!assets) {
+      return false;
+    }
+    return true;
+  }
+
+  async openSea(address, token, contract) {
+    try {
+      let request_url;
+      if (this.network == 'rinkeby') {
+        request_url = 'https://rinkeby-api.opensea.io/api/v1/assets?owner='+ address + (token ? token : '') + (contract ? contract : '') + '&amp;order_by=listing_date_date&amp;order_direction=desc&amp;limit=300';
+      } else {
+        request_url = 'https://api.opensea.io/api/v1/assets?owner='+ address + (token ? token : '') + (contract ? contract : '') + '&amp;order_by=listing_date&amp;order_direction=desc&amp;limit=300';
+      }
+      let request = await axios.get(request_url, {}, { headers: { 'X-API-KEY' : cfg.OS_KEY }});
+      if (!request || !request.data || !request.data.assets) { return false; }
+      return request.data.assets;
+    } catch (ex) {
+      return false;
+    }
+  }
+}
+
+module.exports = OpenSea;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Api.html">Api</a></li><li><a href="CommandRouter.html">CommandRouter</a></li><li><a href="DiscordMessageHandler.html">DiscordMessageHandler</a></li><li><a href="EnjinAdapter.html">EnjinAdapter</a></li><li><a href="ENS.html">ENS</a></li><li><a href="Erc20Adapter.html">Erc20Adapter</a></li><li><a href="Erc721Adapter.html">Erc721Adapter</a></li><li><a href="Factory.html">Factory</a></li><li><a href="MuleController.html">MuleController</a></li><li><a href="RedisController.html">RedisController</a></li><li><a href="SqlController.html">SqlController</a></li><li><a href="TelegramMessageHandler.html">TelegramMessageHandler</a></li><li><a href="Web3Adapter.html">Web3Adapter</a></li><li><a href="Web3Controller.html">Web3Controller</a></li><li><a href="WSS.html">WSS</a></li></ul><h3>Global</h3><ul><li><a href="global.html#axios">axios</a></li><li><a href="global.html#dotenv">dotenv</a></li><li><a href="global.html#favoriteTokens">favoriteTokens</a></li><li><a href="global.html#getPool">getPool</a></li><li><a href="global.html#getUser">getUser</a></li><li><a href="global.html#platformToQuery">platformToQuery</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Thu Jul 02 2020 20:34:07 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

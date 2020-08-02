@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Web3/Erc721Adapter.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Web3/Erc721Adapter.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const ABI = require('./ABI/erc721.abi');
+const axios = require('axios');
+
+/** ERC-721 Adapter */
+class Erc721Adapter {
+  constructor() {
+    this.web3 = false;
+    this.contractAddress = false;
+    this.contract = false;
+  }
+
+  /**
+   * Start Adapter
+   * @param {Object} web3 - Web3 provider
+   * @param {string} contractAddress - Contract address for adapter
+   */
+  async init(web3, contractAddress) {
+    this.web3 = web3;
+    this.contractAddress = contractAddress;
+    this.contract = new this.web3.eth.Contract(ABI, contractAddress);
+  }
+
+  /**
+   * Transfer NFT
+   * @param {string} to - Receiver address
+   * @param {string} token_id - token to transfer
+   * @param {string} from - Sender address
+   */
+  async transfer(to, token_id, from) {
+    let owner = await this.getOwner(from, token_id);
+    if (!owner) {
+      return {'error': 'Address does not own this token!'};
+    }
+
+    let gasEst = await this.estimateGas(to, token_id, from);
+    if (!gasEst) {
+      return {'error': 'Gas estimation error!'};
+    }
+
+    let encodeData = await this.encodeABI(to, token_id, from);
+    if (!encodeData) {
+      return {'error': 'Encoding ABI error!'};
+    }
+
+    return {
+      'data': encodeData,
+      'gas' : gasEst,
+      'contract': this.contractAddress
+    }
+  }
+
+  /**
+   * Get owner of NFT
+   * @param {string} address - Address to check if owner
+   * @param {string} token_id - ID of token to check ownership of
+   */
+  async getOwner(address, token_id) {
+    try {
+      let owner = await this.contract.methods.ownerOf(token_id).call();
+      if (owner.toLowerCase() != address.toLowerCase()) {
+        throw "Not Owner";
+      }
+      return true;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Estimate gas cost
+   * @param {string} to - Receiver address
+   * @param {string} token_id - ID of NFT being sent
+   * @param {string} from - Sender address
+   */
+  async estimateGas(to, token_id, from) {
+    try {
+      let gas = await this.contract.methods.transferFrom(from, to, token_id).estimateGas({'from': from});
+      return gas;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Encode transfer to be signed by sender
+   * @param {string} to - Receiver address
+   * @param {string} token_id - ID of NFT being sent
+   * @param {string} from - Sender address
+   */
+  async encodeABI(to, token_id, from) {
+    try {
+      let data = await this.contract.methods.transferFrom(from, to, token_id).encodeABI();
+      return data;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Get contract name, token name, token image, id
+   * @param {string} id - ID of the NFT
+   */
+  async tokenInfo(id) {
+    let [tokenName, tokenImage] = await this.getMetadata(id);
+    let contractName = await this.contractName();
+    return {
+      contract_name: contractName,
+      token_name: tokenName,
+      token_image: tokenImage,
+      id: id
+    }
+  }
+
+  /**
+   * Get the contract name
+   */
+  async contractName() {
+    try {
+      let contractName = await this.contract.methods.name().call();
+      return contractName;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Get metadata for the token
+   * @param {string} token_id - ID of the NFT
+   */
+  async getMetadata(token_id) {
+    try {
+      let metadataURI = await this.contract.methods.tokenURI(token_id).call();
+      let [name, image] = await this.metadata(metadataURI);
+      return [name, image];
+    } catch(ex) {
+      return [false, false]
+    }
+  }
+
+  /**
+   * Fetch metadata from URI
+   * @param {string} URI - FQDN to fetch metadata from
+   */
+  async metadata(URI) {
+    try {
+      let req = await axios.get(URI, {timeout: 5000});
+      if (!req.data) {
+        throw 'bad uri';
+      }
+      let name = req.data.name ? req.data.name : (req.data.properties &amp;&amp; req.data.properties &amp;&amp; req.data.properties.name ? req.data.properties.name : false);
+      let image = req.data.image ? req.data.image : (req.data.properties &amp;&amp; req.data.properties &amp;&amp; req.data.properties.image ? req.data.properties.image : false);
+      return [name, image];
+    } catch(ex) {
+      return [false, false];
+    }
+  }
+
+}
+module.exports = Erc721Adapter;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Api.html">Api</a></li><li><a href="CommandRouter.html">CommandRouter</a></li><li><a href="DiscordMessageHandler.html">DiscordMessageHandler</a></li><li><a href="EnjinAdapter.html">EnjinAdapter</a></li><li><a href="ENS.html">ENS</a></li><li><a href="Erc20Adapter.html">Erc20Adapter</a></li><li><a href="Erc721Adapter.html">Erc721Adapter</a></li><li><a href="Factory.html">Factory</a></li><li><a href="MuleController.html">MuleController</a></li><li><a href="RedisController.html">RedisController</a></li><li><a href="SqlController.html">SqlController</a></li><li><a href="TelegramMessageHandler.html">TelegramMessageHandler</a></li><li><a href="Web3Adapter.html">Web3Adapter</a></li><li><a href="Web3Controller.html">Web3Controller</a></li><li><a href="WSS.html">WSS</a></li></ul><h3>Global</h3><ul><li><a href="global.html#axios">axios</a></li><li><a href="global.html#dotenv">dotenv</a></li><li><a href="global.html#favoriteTokens">favoriteTokens</a></li><li><a href="global.html#getPool">getPool</a></li><li><a href="global.html#getUser">getUser</a></li><li><a href="global.html#platformToQuery">platformToQuery</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Thu Jul 02 2020 20:34:07 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>

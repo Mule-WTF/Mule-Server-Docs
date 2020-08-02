@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>JSDoc: Source: Web3/Erc20Adapter.js</title>
+
+    <script src="scripts/prettify/prettify.js"> </script>
+    <script src="scripts/prettify/lang-css.js"> </script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+
+<body>
+
+<div id="main">
+
+    <h1 class="page-title">Source: Web3/Erc20Adapter.js</h1>
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const ABI = require('./ABI/erc20.abi');
+
+/** ERC-20 Adapter */
+class Erc20Adapter {
+  constructor() {
+    this.web3 = false;
+    this.contractAddress = false;
+    this.contract = false;
+  }
+
+  /**
+   * Start Adapter
+   * @param {Object} web3 - Web3 provider
+   * @param {string} contractAddress - Contract address for adapter
+   * @param {Object} [abi=false] - ABI for contract
+   */
+  async init(web3, contractAddress, abi = false) {
+    this.web3 = web3;
+    this.contractAddress = contractAddress;
+    try {
+      this.contract = new this.web3.eth.Contract(abi ? abi : ABI, contractAddress);
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Call a contract method
+   * @param {stirng} methodName - Contract function name to be called
+   * @param {string} from - Address to call function as
+   * @param {string} arg - Argument to call function with
+   */
+  async call(methodName, from, arg) {
+    try {
+      let response = await this.contract.methods[methodName](arg).call({'from': from});
+      return response;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Transfer token
+   * @param {string} to - Receiver address
+   * @param {string | number} value - Amount of tokens to transfer
+   * @param {string} from - Sender address
+   */
+  async transfer(to, value, from) {
+    let balance = await this.getBalance(from);
+    if (!balance || parseInt(balance,10) &lt; parseInt(value,10)) {
+      return {'error': 'Your mule is not carrying that much!'};
+    }
+
+    value = this.web3.utils.toWei(value.toString(), 'ether')
+    let gasEst = await this.estimateGas(to, value, from);
+    if (!gasEst) {
+      return {'error': 'Your mule cannot afford to pay their expenses on this trip!'};
+    }
+
+    let encodeData = await this.encodeABI(to, value, from);
+    if (!encodeData) {
+      return {'error': 'Your mule is confused by this mysterious ABI encoding!'};
+    }
+
+    return {
+      'data': encodeData,
+      'gas' : gasEst,
+      'contract': this.contractAddress
+    }
+  }
+
+  /**
+   * Get balance of tokens
+   * @param {string} address - Address to query balance of
+   */
+  async getBalance(address) {
+    try {
+      let balance = await this.contract.methods.balanceOf(address).call();
+      balance = this.web3.utils.fromWei(balance, 'ether');
+      return balance;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Estimate gas cost
+   * @param {string} to - Receiver address
+   * @param {string | number} value - Amount of tokens being sent
+   * @param {string} from - Sender address
+   */
+  async estimateGas(to, value, from) {
+    try {
+      let gas = await this.contract.methods.transfer(to, value).estimateGas({'from': from});
+      return gas;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Encode transfer to be signed by sender
+   * @param {string} to - Receiver address
+   * @param {string | number} - Amount of tokens being sent
+   * @param {string} - Sender Address
+   */
+  async encodeABI(to, value, from) {
+    try {
+      let data = await this.contract.methods.transfer(to, value).encodeABI();
+      return data;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Get balance and token symbol
+   * @param {string} address - Address to query balance of
+   */
+  async getBalanceAndTick(address) {
+    try {
+      let balance = await this.contract.methods.balanceOf(address).call();
+      balance = this.web3.utils.fromWei(balance, 'ether');
+      let symbol = await this.contract.methods.symbol().call();
+      return {'balance': balance, 'symbol': symbol}
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Get token name and symbol
+   */
+  async tokenInfo() {
+    let name = await this.getName();
+    let symbol = await this.getSymbol();
+    symbol = symbol ? symbol : name;
+    return {
+      token_name: name,
+      token_symbol: symbol
+    }
+  }
+
+  /**
+   * Get token name
+   */
+  async getName() {
+    try {
+      let name = await this.contract.methods.name().call();
+      return name;
+    } catch(ex) {
+      return false;
+    }
+  }
+
+  /**
+   * Get token symbol
+   */
+  async getSymbol() {
+    try {
+      let symbol = await this.contract.methods.symbol().call();
+      return symbol;
+    } catch(ex) {
+      return false;
+    }
+
+  }
+
+}
+module.exports = Erc20Adapter;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<nav>
+    <h2><a href="index.html">Home</a></h2><h3>Classes</h3><ul><li><a href="Api.html">Api</a></li><li><a href="CommandRouter.html">CommandRouter</a></li><li><a href="DiscordMessageHandler.html">DiscordMessageHandler</a></li><li><a href="EnjinAdapter.html">EnjinAdapter</a></li><li><a href="ENS.html">ENS</a></li><li><a href="Erc20Adapter.html">Erc20Adapter</a></li><li><a href="Erc721Adapter.html">Erc721Adapter</a></li><li><a href="Factory.html">Factory</a></li><li><a href="MuleController.html">MuleController</a></li><li><a href="RedisController.html">RedisController</a></li><li><a href="SqlController.html">SqlController</a></li><li><a href="TelegramMessageHandler.html">TelegramMessageHandler</a></li><li><a href="Web3Adapter.html">Web3Adapter</a></li><li><a href="Web3Controller.html">Web3Controller</a></li><li><a href="WSS.html">WSS</a></li></ul><h3>Global</h3><ul><li><a href="global.html#axios">axios</a></li><li><a href="global.html#dotenv">dotenv</a></li><li><a href="global.html#favoriteTokens">favoriteTokens</a></li><li><a href="global.html#getPool">getPool</a></li><li><a href="global.html#getUser">getUser</a></li><li><a href="global.html#platformToQuery">platformToQuery</a></li></ul>
+</nav>
+
+<br class="clear">
+
+<footer>
+    Documentation generated by <a href="https://github.com/jsdoc/jsdoc">JSDoc 3.6.4</a> on Thu Jul 02 2020 20:34:07 GMT-0400 (Eastern Daylight Time)
+</footer>
+
+<script> prettyPrint(); </script>
+<script src="scripts/linenumber.js"> </script>
+</body>
+</html>
